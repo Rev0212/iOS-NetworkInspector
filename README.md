@@ -32,8 +32,8 @@ Enable the inspector in **DEBUG** builds only:
 
 ```swift
 #if DEBUG
-NetworkInspector.enable()
-NetworkInspector.enableFloatingButton()
+NetworkInspector.LeapInspector.enable()
+NetworkInspector.LeapInspector.enableFloatingButton()
 #endif
 
 A floating 📡 button will appear on screen.
