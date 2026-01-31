@@ -35,8 +35,6 @@ final class InspectorURLProtocol: URLProtocol {
     }
 
     override func startLoading() {
-        logBuilder.captureRequest(request)
-        
         guard let mutableRequest =
                 (request as NSURLRequest).mutableCopy() as? NSMutableURLRequest
         else {
@@ -46,6 +44,9 @@ final class InspectorURLProtocol: URLProtocol {
 
         URLProtocol.setProperty(true, forKey: Self.handledKey, in: mutableRequest)
 
+        let bodyData = materializeBodyIfNeeded(in: mutableRequest) ?? mutableRequest.httpBody
+        logBuilder.captureRequest(mutableRequest as URLRequest, bodyOverride: bodyData)
+
         dataTask = session.dataTask(with: mutableRequest as URLRequest)
         
         dataTask?.resume()
@@ -54,6 +55,32 @@ final class InspectorURLProtocol: URLProtocol {
     override func stopLoading() {
         dataTask?.cancel()
         dataTask = nil
+    }
+
+    func materializeBodyIfNeeded(in request: NSMutableURLRequest) -> Data? {
+        guard request.httpBody == nil, let stream = request.httpBodyStream else { return nil }
+
+        stream.open()
+        defer { stream.close() }
+
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 1024)
+        var read = stream.read(&buffer, maxLength: buffer.count)
+
+        while read > 0 {
+            data.append(buffer, count: read)
+            read = stream.read(&buffer, maxLength: buffer.count)
+        }
+
+        if !data.isEmpty {
+            request.httpBody = data
+            request.httpBodyStream = InputStream(data: data)
+
+            if request.value(forHTTPHeaderField: "Content-Length") == nil {
+                request.setValue(String(data.count), forHTTPHeaderField: "Content-Length")
+            }
+        }
+        return data.isEmpty ? nil : data
     }
 }
 
@@ -102,6 +129,24 @@ extension InspectorURLProtocol: URLSessionDataDelegate {
         } else {
             client?.urlProtocolDidFinishLoading(self)
         }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        guard let client else {
+            completionHandler(request)
+            return
+        }
+
+        let redirectRequest = (request as NSURLRequest).mutableCopy() as! NSMutableURLRequest
+        URLProtocol.removeProperty(forKey: Self.handledKey, in: redirectRequest)
+        client.urlProtocol(self, wasRedirectedTo: redirectRequest as URLRequest, redirectResponse: response)
+        completionHandler(nil)
     }
 }
 

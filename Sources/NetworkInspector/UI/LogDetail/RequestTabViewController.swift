@@ -35,6 +35,11 @@ private extension RequestTabViewController {
         textView.isEditable = false
         textView.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
 
+        let headersText = log.request.headers.isEmpty
+            ? "-"
+            : PrettyFormatter.prettyHeaders(log.request.headers)
+        let bodyText = log.request.body.map(PrettyFormatter.prettyJSON(from:)) ?? "-"
+
         textView.text = """
         URL:
         \(log.request.url?.absoluteString ?? "-")
@@ -43,10 +48,10 @@ private extension RequestTabViewController {
         \(log.request.method.rawValue)
 
         Headers:
-        \(log.request.headers)
+        \(headersText)
 
         Body:
-        \(log.request.body.flatMap { String(data: $0, encoding: .utf8) } ?? "-")
+        \(bodyText)
         """
 
         textView.translatesAutoresizingMaskIntoConstraints = false

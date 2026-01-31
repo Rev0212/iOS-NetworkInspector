@@ -30,7 +30,7 @@ final class NetworkLogBuilder {
 
     // MARK: - Capture points
 
-    func captureRequest(_ request: URLRequest) {
+    func captureRequest(_ request: URLRequest, bodyOverride: Data? = nil) {
         guard requestInfo == nil else { return }
 
         let method: HTTPMethod =
@@ -40,7 +40,7 @@ final class NetworkLogBuilder {
             url: request.url,
             method: method,
             headers: request.allHTTPHeaderFields ?? [:],
-            body: request.httpBody
+            body: bodyOverride ?? request.httpBody
         )
 
         startTime = Date()
