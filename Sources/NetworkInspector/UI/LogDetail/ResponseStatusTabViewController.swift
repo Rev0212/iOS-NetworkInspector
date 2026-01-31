@@ -35,6 +35,8 @@ private extension ResponseStatusTabViewController {
         label.numberOfLines = 0
         label.font = .systemFont(ofSize: 15)
 
+        let headersText = log.response.headers.map(PrettyFormatter.prettyHeaders) ?? "-"
+
         label.text = """
         Status Code:
         \(log.response.statusCode.map(String.init) ?? "—")
@@ -44,6 +46,9 @@ private extension ResponseStatusTabViewController {
 
         Error:
         \(log.response.error?.localizedDescription ?? "None")
+
+        Headers:
+        \(headersText)
         """
 
         label.translatesAutoresizingMaskIntoConstraints = false

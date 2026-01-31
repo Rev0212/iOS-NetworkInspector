@@ -15,7 +15,7 @@ final class LogDetailViewController: UIViewController {
     init(log: NetworkLog) {
         self.log = log
         super.init(nibName: nil, bundle: nil)
-        title = log.request.url?.lastPathComponent ?? "Request"
+        title = LogDetailViewController.titleForEndpoint(from: log.request.url)
     }
 
     required init?(coder: NSCoder) {
@@ -25,11 +25,28 @@ final class LogDetailViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
+        setupNavigationItems()
         setupTabs()
     }
 }
 
 private extension LogDetailViewController {
+
+    static func titleForEndpoint(from url: URL?) -> String {
+        guard let url else { return "Request" }
+        let path = url.path
+        let trimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        return trimmed.isEmpty ? (url.host ?? "Request") : trimmed
+    }
+
+    func setupNavigationItems() {
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "Copy cURL",
+            style: .plain,
+            target: self,
+            action: #selector(copyCurl)
+        )
+    }
 
     func setupTabs() {
         let requestVC = RequestTabViewController(log: log)
@@ -96,5 +113,56 @@ private extension LogDetailViewController {
         ])
 
         tabBarController.didMove(toParent: self)
+    }
+
+    @objc
+    func copyCurl() {
+        let curlCommand = buildCurlCommand()
+        UIPasteboard.general.string = curlCommand
+
+        let alert = UIAlertController(
+            title: "Copied",
+            message: "cURL command copied to clipboard.",
+            preferredStyle: .alert
+        )
+        present(alert, animated: true)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            alert.dismiss(animated: true)
+        }
+    }
+
+    func buildCurlCommand() -> String {
+        guard let url = log.request.url?.absoluteString else {
+            return "curl"
+        }
+
+        var parts: [String] = [
+            "curl",
+            "-X",
+            log.request.method.rawValue
+        ]
+
+        let headers = log.request.headers.sorted { $0.key < $1.key }
+        for header in headers {
+            let headerValue = "\(header.key): \(header.value)"
+            parts.append("-H")
+            parts.append("'\(shellEscapeSingleQuotes(headerValue))'")
+        }
+
+        if let body = log.request.body {
+            let bodyString = String(decoding: body, as: UTF8.self)
+            if !bodyString.isEmpty {
+                parts.append("--data-binary")
+                parts.append("'\(shellEscapeSingleQuotes(bodyString))'")
+            }
+        }
+
+        parts.append("'\(shellEscapeSingleQuotes(url))'")
+        return parts.joined(separator: " ")
+    }
+
+    func shellEscapeSingleQuotes(_ value: String) -> String {
+        value.replacingOccurrences(of: "'", with: "'\"'\"'")
     }
 }

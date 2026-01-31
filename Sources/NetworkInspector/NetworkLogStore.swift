@@ -47,6 +47,19 @@ final class NetworkLogStore {
             logs
         }
     }
+
+    func remove(id: UUID) {
+        queue.async {
+            self.logs.removeAll { $0.id == id }
+
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .networkLogStoreDidUpdate,
+                    object: nil
+                )
+            }
+        }
+    }
     
     func clear() {
         queue.async {
