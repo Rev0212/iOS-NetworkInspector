@@ -7,9 +7,10 @@ public enum LeapInspector {
     
     private static var isEnabled = false
     
-    public static func enable() {
+    public static func enable(baseURLs: [String] = []) {
         guard !isEnabled else { return }
         isEnabled = true
+        NetworkInterceptor.setAllowedBaseURLs(baseURLs)
         NetworkInterceptor.register()
     }
     

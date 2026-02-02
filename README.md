@@ -35,6 +35,28 @@ Enable the inspector in **DEBUG** builds only:
 NetworkInspector.enable()
 NetworkInspector.enableFloatingButton()
 #endif
+```
 
 A floating 📡 button will appear on screen.
 Tap it to open the network inspector UI.
+
+To capture only specific base URLs, pass one or more base addresses:
+
+```swift
+#if DEBUG
+NetworkInspector.enable(
+    baseURLs: [
+        "https://mario-api.leapscholar.com",
+        "https://mario-ieltsbff.leapscholar.com"
+    ]
+)
+NetworkInspector.enableFloatingButton()
+#endif
+```
+
+---
+
+## API Tab
+
+The inspector UI includes an **APIs** tab that lists unique endpoints and the number
+of calls for each. Tap an endpoint to view only the logs for that API.

@@ -27,7 +27,8 @@ final class InspectorURLProtocol: URLProtocol {
         }
 
         guard let scheme = request.url?.scheme else { return false }
-        return scheme == "http" || scheme == "https"
+        guard scheme == "http" || scheme == "https" else { return false }
+        return NetworkInterceptor.shouldIntercept(request.url)
     }
 
     override class func canonicalRequest(for request: URLRequest) -> URLRequest {
