@@ -60,6 +60,19 @@ final class NetworkLogStore {
             }
         }
     }
+
+    func remove(where shouldRemove: @escaping (NetworkLog) -> Bool) {
+        queue.async {
+            self.logs.removeAll(where: shouldRemove)
+
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .networkLogStoreDidUpdate,
+                    object: nil
+                )
+            }
+        }
+    }
     
     func clear() {
         queue.async {

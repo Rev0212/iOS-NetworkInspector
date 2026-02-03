@@ -9,88 +9,108 @@
 import UIKit
 
 final class LogCell: UITableViewCell {
-
+    
     static let reuseIdentifier = "LogCell"
-
+    
     private let methodLabel = UILabel()
-    private let urlLabel = UILabel()
-    private let statusLabel = UILabel()
-    private let durationLabel = UILabel()
-
+    private let endpointLabel = UILabel()
+    private let statusRightLabel = UILabel()
+    private let baseLabel = UILabel()
+    
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
     }
-
+    
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 }
 
-
+    // MARK: - UI Setup
 private extension LogCell {
-
+    
     func setupUI() {
+            // Method
         methodLabel.font = .monospacedSystemFont(ofSize: 12, weight: .bold)
         methodLabel.setContentHuggingPriority(.required, for: .horizontal)
-
-        urlLabel.font = .systemFont(ofSize: 14)
-        urlLabel.numberOfLines = 2
-
-        statusLabel.font = .systemFont(ofSize: 12, weight: .semibold)
-        durationLabel.font = .systemFont(ofSize: 12)
-        durationLabel.textColor = .secondaryLabel
-
-        let topRow = UIStackView(arrangedSubviews: [
+        methodLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+        
+            // Endpoint
+        endpointLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        endpointLabel.numberOfLines = 0
+        endpointLabel.lineBreakMode = .byWordWrapping
+        
+            // Status (right)
+        statusRightLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        statusRightLabel.textAlignment = .right
+        
+            // Host (right bottom)
+        baseLabel.font = .systemFont(ofSize: 12)
+        baseLabel.textColor = .secondaryLabel
+        baseLabel.textAlignment = .right
+        baseLabel.numberOfLines = 2
+        
+            // Left row: METHOD + ENDPOINT (center aligned)
+        let leftRow = UIStackView(arrangedSubviews: [
             methodLabel,
-            urlLabel
+            endpointLabel
         ])
-        topRow.axis = .horizontal
-        topRow.spacing = 8
-        topRow.alignment = .top
-
-        let bottomRow = UIStackView(arrangedSubviews: [
-            statusLabel,
-            UIView(),
-            durationLabel
+        leftRow.axis = .horizontal
+        leftRow.spacing = 8
+        leftRow.alignment = .center
+        
+            // Right stack: STATUS + HOST
+        let rightStack = UIStackView(arrangedSubviews: [
+            statusRightLabel,
+            baseLabel
         ])
-        bottomRow.axis = .horizontal
-
-        let stack = UIStackView(arrangedSubviews: [
-            topRow,
-            bottomRow
+        rightStack.axis = .vertical
+        rightStack.spacing = 4
+        rightStack.alignment = .trailing
+        rightStack.setContentHuggingPriority(.required, for: .horizontal)
+        
+            // Main row
+        let row = UIStackView(arrangedSubviews: [
+            leftRow,
+            rightStack
         ])
-        stack.axis = .vertical
-        stack.spacing = 6
-
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(stack)
-
+        row.axis = .horizontal
+        row.spacing = 12
+        row.alignment = .center
+        
+        row.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(row)
+        
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
-            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -12),
-            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
+            row.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
+            row.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -12),
+            row.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            row.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
         ])
     }
 }
 
-
+    // MARK: - Configuration
 extension LogCell {
-
+    
     func configure(with log: NetworkLog) {
         methodLabel.text = log.request.method.rawValue
-        urlLabel.text = log.request.url?.path ?? "/"
-
+        
+        let host = log.request.url?.host ?? "-"
+        let path = log.request.url?.path ?? "/"
+        endpointLabel.text = path
+        
         if let status = log.response.statusCode {
-            statusLabel.text = "Status \(status)"
-            statusLabel.textColor = status < 400 ? .systemGreen : .systemRed
+            let text = "Status \(status)"
+            let color: UIColor = status < 400 ? .systemGreen : .systemRed
+            statusRightLabel.text = text
+            statusRightLabel.textColor = color
         } else {
-            statusLabel.text = "Failed"
-            statusLabel.textColor = .systemRed
+            statusRightLabel.text = "Failed"
+            statusRightLabel.textColor = .systemRed
         }
-
-        let ms = Int(log.timing.duration * 1000)
-        durationLabel.text = "\(ms) ms"
+        
+        baseLabel.text = host
     }
 }
