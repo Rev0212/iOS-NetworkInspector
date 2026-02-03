@@ -1,62 +1,67 @@
-# NetworkInspector
+**NetworkInspector**
 
-NetworkInspector is a lightweight in-app network inspection tool for iOS.
-It intercepts `URLSession` traffic and provides a built-in UI to inspect
-requests, responses, headers, status codes, timing, and payloads.
+NetworkInspector is a lightweight, in-app network inspection tool for iOS apps.
+It intercepts URLSession traffic and provides a built-in UI to inspect HTTP requests and responses in real time.
 
-This tool is intended **strictly for DEBUG builds**.
+DEBUG builds only. Do not ship this tool in production.
 
----
+**What It Does (Precisely)** :
 
-## Features
+NetworkInspector works by registering a custom URLProtocol that observes network traffic initiated through URLSession.
 
-- Intercepts all HTTP/HTTPS requests using `URLProtocol`
-- Captures request & response headers, body, status code, and timing
-- In-memory log storage with size limits
-- Built-in inspector UI (list → detail → tabs)
-- Pretty-printed JSON responses
-- Floating overlay button (does not interfere with app UI)
-- Works with UIKit and SwiftUI apps
+• Request method, URL, headers, and body
+• Response headers, status code, and body
+• Request timing and duration
+• Base URL grouping for easier filtering
 
----
+All logs are stored in memory only (no disk persistence).
 
-## Installation (Swift Package Manager)
+**Features:**
 
-Add the package using Xcode: 
+• Intercepts HTTP/HTTPS traffic using URLProtocol
+• Intercept all requests or only selected base URLs
+• Captures request and response headers and bodies
+• Captures status codes and timing information
+• In-memory log storage with size limits
+• Built-in inspector UI (List → Detail → Tabs)
+• Pretty-printed JSON responses
+• Share requests as cURL commands
+• Floating overlay button that does not block app interaction
+• Works with UIKit and SwiftUI
 
-File → Add Packages → Paste repository URL
+**Installation (Swift Package Manager)**
 
-## Usage
+• Open Xcode
+• Go to File → Add Packages
+• Paste https://github.com/Rev0212/iOS-NetworkInspector
+• Add the package to your app target
 
-Enable the inspector in **DEBUG** builds only:
+**Usage**
+Enable the inspector in DEBUG builds to intercept all requests:
 
-```swift
 #if DEBUG
 NetworkInspector.LeapInspector.enable()
 NetworkInspector.LeapInspector.enableFloatingButton()
 #endif
-```
 
-A floating 📡 button will appear on screen.
-Tap it to open the network inspector UI.
+To intercept only specific base URLs:
 
-To capture only specific base URLs, pass one or more base addresses:
-
-```swift
 #if DEBUG
-NetworkInspector.enable(
-    baseURLs: [
-        "https://mario-api.leapscholar.com",
-        "https://mario-ieltsbff.leapscholar.com"
-    ]
-)
+NetworkInspector.enable(baseURLs: ["https://my-api.com", "https://my-base-api.com"])
 NetworkInspector.enableFloatingButton()
 #endif
-```
 
----
 
-## API Tab
+**Inspector UI**
+• Floating button opens the inspector
+• Browse requests in a list view
+• Inspect headers, body, response, and timing
+• Share as cURL or delete logs
+• Overlay does not interfere with app UI
 
-The inspector UI includes an **APIs** tab that lists unique endpoints and the number
-of calls for each. Tap an endpoint to view only the logs for that API.
+**Important Notes**
+
+• DEBUG builds only
+• Works only with URLSession
+• Logs cleared on app restart
+• Intended strictly as a developer debugging tool
