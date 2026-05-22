@@ -11,6 +11,14 @@ import UIKit
 final class LogDetailViewController: UIViewController {
 
     private let log: NetworkLog
+    private let segmentedControl = UISegmentedControl(items: ["Request", "Status", "Response"])
+    private let containerView = UIView()
+    private lazy var tabViewControllers: [UIViewController] = [
+        RequestTabViewController(log: log),
+        ResponseStatusTabViewController(log: log),
+        ResponseBodyTabViewController(log: log)
+    ]
+    private var currentChild: UIViewController?
 
     init(log: NetworkLog) {
         self.log = log
@@ -26,7 +34,9 @@ final class LogDetailViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         setupNavigationItems()
-        setupTabs()
+        setupSegmentedControl()
+        setupContainer()
+        showChild(at: 0)
     }
 }
 
@@ -40,93 +50,111 @@ private extension LogDetailViewController {
     }
 
     func setupNavigationItems() {
+        let menu = UIMenu(children: [
+            UIAction(title: "Copy cURL", image: UIImage(systemName: "terminal")) { [weak self] _ in
+                self?.copyCurl()
+            },
+            UIAction(title: "Copy Auth Token", image: UIImage(systemName: "key")) { [weak self] _ in
+                self?.copyAuthToken()
+            }
+        ])
+
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Copy cURL",
-            style: .plain,
-            target: self,
-            action: #selector(copyCurl)
+            title: "Copy",
+            image: nil,
+            primaryAction: nil,
+            menu: menu
         )
     }
 
-    func setupTabs() {
-        let requestVC = RequestTabViewController(log: log)
-        requestVC.tabBarItem = UITabBarItem(
-            title: "Request",
-            image: UIImage(systemName: "arrow.up"),
-            tag: 0
-        )
-
-        let statusVC = ResponseStatusTabViewController(log: log)
-        statusVC.tabBarItem = UITabBarItem(
-            title: "Status",
-            image: UIImage(systemName: "info.circle"),
-            tag: 1
-        )
-
-        let bodyVC = ResponseBodyTabViewController(log: log)
-        bodyVC.tabBarItem = UITabBarItem(
-            title: "Response",
-            image: UIImage(systemName: "doc.text"),
-            tag: 2
-        )
-
-        let tabBarController = UITabBarController()
-        tabBarController.viewControllers = [
-            requestVC,
-            statusVC,
-            bodyVC
-        ]
-
-        // 🔴 1. Disable translucency (major glossy source)
-        tabBarController.tabBar.isTranslucent = false
-        tabBarController.tabBar.backgroundColor = .white
-
-        // 🔴 2. Force opaque tab bar appearance (iOS 15+)
-        if #available(iOS 15.0, *) {
-            let appearance = UITabBarAppearance()
-            appearance.configureWithOpaqueBackground()
-            appearance.backgroundColor = .white
-
-            appearance.stackedLayoutAppearance.normal.iconColor = .darkGray
-            appearance.stackedLayoutAppearance.selected.iconColor = .black
-            appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-                .foregroundColor: UIColor.darkGray
-            ]
-            appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-                .foregroundColor: UIColor.black
-            ]
-
-            tabBarController.tabBar.standardAppearance = appearance
-            tabBarController.tabBar.scrollEdgeAppearance = appearance
-        }
-
-        // 🔴 3. Proper containment + layout
-        addChild(tabBarController)
-        tabBarController.view.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(tabBarController.view)
+    func setupSegmentedControl() {
+        segmentedControl.selectedSegmentIndex = 0
+        segmentedControl.addTarget(self, action: #selector(onSegmentChanged), for: .valueChanged)
+        segmentedControl.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(segmentedControl)
 
         NSLayoutConstraint.activate([
-            tabBarController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            tabBarController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            tabBarController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tabBarController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+            segmentedControl.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            segmentedControl.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            segmentedControl.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16)
         ])
+    }
 
-        tabBarController.didMove(toParent: self)
+    func setupContainer() {
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(containerView)
+
+        NSLayoutConstraint.activate([
+            containerView.topAnchor.constraint(equalTo: segmentedControl.bottomAnchor, constant: 8),
+            containerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            containerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            containerView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
     }
 
     @objc
+    func onSegmentChanged() {
+        showChild(at: segmentedControl.selectedSegmentIndex)
+    }
+
+    func showChild(at index: Int) {
+        guard index >= 0, index < tabViewControllers.count else { return }
+        let newChild = tabViewControllers[index]
+        if newChild === currentChild { return }
+
+        if let currentChild {
+            currentChild.willMove(toParent: nil)
+            currentChild.view.removeFromSuperview()
+            currentChild.removeFromParent()
+        }
+
+        addChild(newChild)
+        newChild.view.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(newChild.view)
+
+        NSLayoutConstraint.activate([
+            newChild.view.topAnchor.constraint(equalTo: containerView.topAnchor),
+            newChild.view.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+            newChild.view.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            newChild.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor)
+        ])
+
+        newChild.didMove(toParent: self)
+        currentChild = newChild
+    }
+
     func copyCurl() {
-        let curlCommand = buildCurlCommand()
-        UIPasteboard.general.string = curlCommand
+        UIPasteboard.general.string = buildCurlCommand()
+        showCopiedToast(message: "cURL command copied to clipboard.")
+    }
 
-        let alert = UIAlertController(
-            title: "Copied",
-            message: "cURL command copied to clipboard.",
-            preferredStyle: .alert
-        )
+    func copyAuthToken() {
+        if let token = extractAuthToken() {
+            UIPasteboard.general.string = token
+            showCopiedToast(message: "Auth token copied to clipboard.")
+        } else {
+            showCopiedToast(title: "No Token", message: "No Authorization header on this request.")
+        }
+    }
+
+    func extractAuthToken() -> String? {
+        let authValue = log.request.headers.first { $0.key.caseInsensitiveCompare("Authorization") == .orderedSame }?.value
+        guard let raw = authValue?.trimmingCharacters(in: .whitespaces), !raw.isEmpty else {
+            return nil
+        }
+
+        let lowered = raw.lowercased()
+        for scheme in ["bearer ", "token ", "basic "] {
+            if lowered.hasPrefix(scheme) {
+                return String(raw.dropFirst(scheme.count)).trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return raw
+    }
+
+    func showCopiedToast(title: String = "Copied", message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         present(alert, animated: true)
-
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             alert.dismiss(animated: true)
         }
