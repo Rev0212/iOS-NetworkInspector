@@ -4,9 +4,16 @@
 import Foundation
 
 public enum LeapInspector {
-    
+
+    public enum ResponseViewMode {
+        case tree
+        case raw
+    }
+
     private static var isEnabled = false
-    
+
+    public static var responseViewMode: ResponseViewMode = .tree
+
     public static func enable(baseURLs: [String] = []) {
         guard !isEnabled else { return }
         isEnabled = true

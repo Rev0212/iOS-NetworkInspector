@@ -55,7 +55,7 @@ private extension ResponseStatusTabViewController {
         view.addSubview(label)
 
         NSLayoutConstraint.activate([
-            label.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            label.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
             label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16)
         ])
