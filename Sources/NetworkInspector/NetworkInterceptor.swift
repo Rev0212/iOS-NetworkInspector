@@ -11,12 +11,16 @@ import Foundation
 final class NetworkInterceptor {
 
     private static var allowedBaseURLs: [String] = []
+    private static var isCapturing = false
 
     static func register() {
+        isCapturing = true
+        URLSessionConfiguration.installInspectorSwizzle()
         URLProtocol.registerClass(InspectorURLProtocol.self)
     }
 
     static func unregister() {
+        isCapturing = false
         URLProtocol.unregisterClass(InspectorURLProtocol.self)
     }
 
@@ -32,6 +36,7 @@ final class NetworkInterceptor {
     }
 
     static func shouldIntercept(_ url: URL?) -> Bool {
+        guard isCapturing else { return false }
         guard let absoluteString = url?.absoluteString.lowercased() else { return false }
         guard !allowedBaseURLs.isEmpty else { return true }
 
