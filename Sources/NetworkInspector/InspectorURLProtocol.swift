@@ -18,6 +18,10 @@ final class InspectorURLProtocol: URLProtocol {
 
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
+        // `default` is swizzled to seed InspectorURLProtocol; leaving it in place here would point
+        // this forwarding session back at ourselves. The handled-request flag already breaks that
+        // loop, but keeping it off the replay session means we never rely on it.
+        config.protocolClasses = []
         return URLSession(configuration: config, delegate: self, delegateQueue: nil)
     }()
 
