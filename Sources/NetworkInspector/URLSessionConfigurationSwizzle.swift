@@ -11,31 +11,55 @@ import ObjectiveC
 
 extension URLSessionConfiguration {
 
-    private static var isSwizzled = false
-
-    @objc dynamic var inspector_protocolClasses: [AnyClass]? {
-        var classes = self.inspector_protocolClasses ?? []
-        if !classes.contains(where: { $0 == InspectorURLProtocol.self }) {
-            classes.insert(InspectorURLProtocol.self, at: 0)
-        }
-        return classes
+    /// `URLProtocol.registerClass` is only consulted by `NSURLConnection` and `URLSession.shared`.
+    /// A session built from its own configuration — Ktor's Darwin engine, Alamofire, most embedded
+    /// SDKs — ignores that registry entirely and only reads its own `protocolClasses`.
+    ///
+    /// Swizzling the instance `protocolClasses` getter does not work here: `URLSessionConfiguration`
+    /// is a class cluster, so `default` returns a private `__NSCFURLSessionConfiguration` whose own
+    /// override wins over anything exchanged on this class. The factory class methods are the one
+    /// place every such configuration is guaranteed to pass through.
+    static func installInspectorSwizzle() {
+        _ = installOnce
     }
 
-    static func installInspectorSwizzle() {
-        guard !isSwizzled else { return }
+    /// A `static let` is initialised exactly once and is thread-safe, so concurrent callers block
+    /// until the exchange has actually landed. A plain bool flag would let a second caller return
+    /// early while the first was still mid-swizzle.
+    private static let installOnce: Void = {
+        exchangeClassMethod(
+            #selector(getter: URLSessionConfiguration.default),
+            with: #selector(URLSessionConfiguration.inspector_defaultSessionConfiguration)
+        )
+        exchangeClassMethod(
+            #selector(getter: URLSessionConfiguration.ephemeral),
+            with: #selector(URLSessionConfiguration.inspector_ephemeralSessionConfiguration)
+        )
+    }()
 
+    private static func exchangeClassMethod(_ original: Selector, with replacement: Selector) {
         guard
-            let original = class_getInstanceMethod(
-                URLSessionConfiguration.self,
-                #selector(getter: URLSessionConfiguration.protocolClasses)
-            ),
-            let replacement = class_getInstanceMethod(
-                URLSessionConfiguration.self,
-                #selector(getter: URLSessionConfiguration.inspector_protocolClasses)
-            )
+            let originalMethod = class_getClassMethod(URLSessionConfiguration.self, original),
+            let replacementMethod = class_getClassMethod(URLSessionConfiguration.self, replacement)
         else { return }
 
-        method_exchangeImplementations(original, replacement)
-        isSwizzled = true
+        method_exchangeImplementations(originalMethod, replacementMethod)
+    }
+
+    // The implementations are exchanged, so these calls land on the originals.
+    @objc private class func inspector_defaultSessionConfiguration() -> URLSessionConfiguration {
+        inspector_defaultSessionConfiguration().addingInspectorProtocol()
+    }
+
+    @objc private class func inspector_ephemeralSessionConfiguration() -> URLSessionConfiguration {
+        inspector_ephemeralSessionConfiguration().addingInspectorProtocol()
+    }
+
+    private func addingInspectorProtocol() -> URLSessionConfiguration {
+        var classes = protocolClasses ?? []
+        guard !classes.contains(where: { $0 == InspectorURLProtocol.self }) else { return self }
+        classes.insert(InspectorURLProtocol.self, at: 0)
+        protocolClasses = classes
+        return self
     }
 }
